@@ -1,0 +1,27 @@
+{
+  "canisters": {
+    "artview_backend": {
+      "candid": "src/artview_backend/artview_backend.did",
+      "package": "artview_backend",
+      "type": "rust"
+    },
+    "artview_frontend": {
+      "dependencies": [
+        "artview_backend"
+      ],
+      "source": [
+        "src/artview_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "artview_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "dfx": "0.15.1",
+  "canisters": {
+    "note_canister": {
+      "type": "rust",
+      "package": "note_canister",
+      "candid": "src/note_canister/note_canister.did"
+    },
+    "notechain_frontend": {
+      "type": "assets",
+      "source": [
+        "dist/notechain_frontend/"
+      ],
+      "dependencies": [
+        "note_canister"
+      ],
+      "build": "npm run build"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["src/notechain_frontend/src/*"],
+      "@dfinity/agent": ["node_modules/@dfinity/agent"],
+      "declarations/*": [".dfx/local/canisters/*"]
+    }
+  },
+  "include": ["src/notechain_frontend/src", "vite.config.ts", ".dfx/local/canisters/**/*.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

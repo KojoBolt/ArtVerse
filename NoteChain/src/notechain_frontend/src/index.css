@@ -2,7 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-background text-text-primary;
-  font-family: 'Inter', sans-serif;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    height: 100%; /* Ensure html takes full height for gradient */
+  }
+  body {
+    @apply text-neutral-lightest; /* Base text color */
+    font-family: 'Inter var', sans-serif;
+    min-height: 100%; /* Ensure body takes full height */
+    /* Subtle gradient background for depth */
+    background-color: theme('colors.neutral-darkest'); /* Fallback */
+    background-image: radial-gradient(ellipse at top, theme('colors.neutral-darker') 0%, theme('colors.neutral-darkest') 70%);
+    background-repeat: no-repeat;
+    background-attachment: fixed; /* Optional: keeps gradient fixed during scroll */
+  }
+
+  /* Add a custom scrollbar style for a more modern feel - Webkit browsers */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-neutral-darker;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-brand-primary;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-brand-secondary;
+  }
 }
+
+/* Example of how to define a custom gradient text utility if needed, though often done inline */
+/* .text-gradient-primary-secondary {
+  @apply bg-gradient-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent;
+} */

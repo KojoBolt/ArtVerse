@@ -101,54 +101,65 @@ const NoteView: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <p className="text-xl text-primary">Loading note...</p>
-        {/* Spinner icon */}
+      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] animate-fade-in">
+        {/* Optional: Add a more visually appealing spinner/loader here */}
+        <svg className="animate-spin h-10 w-10 text-brand-primary mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="text-xl text-brand-primary">Loading note...</p>
       </div>
     );
   }
 
   if (error && !note) { // Only show error if note is not loaded
     return (
-      <div className="max-w-2xl mx-auto mt-8 p-6 text-center">
-        <p className="text-xl text-red-500">{error}</p>
+      <div className="max-w-2xl mx-auto mt-8 p-6 text-center animate-fade-in">
+        <p className="text-xl text-status-error">{error}</p>
       </div>
     );
   }
 
   if (!note) { // Should be covered by error state, but as a fallback
      return (
-      <div className="max-w-2xl mx-auto mt-8 p-6 text-center">
-        <p className="text-xl text-text-secondary">Note not found.</p>
+      <div className="max-w-2xl mx-auto mt-8 p-6 text-center animate-fade-in">
+        <p className="text-xl text-neutral-light">Note not found.</p>
       </div>
     );
   }
 
   const shareUrl = window.location.href;
-  const twitterShareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(`Check out this note: ${note.title}`)}&url=${encodeURIComponent(shareUrl)}`;
+  const twitterShareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(`Check out this note on NoteChain: ${note.title}`)}&url=${encodeURIComponent(shareUrl)}`;
 
   return (
-    <div className="max-w-3xl mx-auto mt-10 p-8 bg-surface rounded-xl shadow-2xl">
-      <h1 className="text-4xl font-bold text-primary mb-3 break-words">{note.title}</h1>
-      <p className="text-sm text-gray-400 mb-1">
-        Created: {new Date(Number(note.createdAt / 1000000n)).toLocaleString()}
-      </p>
-      <p className="text-sm text-gray-500 mb-6 truncate" title={`Owner: ${note.owner}`}>
-        Owner: {note.owner}
-      </p>
-
-      <div className="prose prose-invert prose-lg max-w-none bg-gray-700 p-6 rounded-md shadow">
-        <p className="whitespace-pre-wrap break-words">{note.content}</p>
+    <div className="max-w-3xl mx-auto mt-8 p-6 sm:p-10 bg-neutral-darker/60 backdrop-blur-xl border border-neutral-dark/50 rounded-2xl shadow-2xl animate-fade-in-up">
+      <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-secondary mb-4 break-words leading-tight">
+        {note.title || "Untitled Note"}
+      </h1>
+      <div className="text-xs text-neutral-medium mb-2">
+        <span>Created: {new Date(Number(note.createdAt / 1000000n)).toLocaleString()}</span>
+      </div>
+      <div className="text-xs text-neutral-dark mb-6 truncate" title={`Owner: ${note.owner}`}>
+        <span className="font-medium text-neutral-medium">Owner:</span> <span className="font-mono">{note.owner}</span>
       </div>
 
-      <div className="mt-8 text-center">
+      {/* Using prose for basic markdown-like styling if content were richer, but for plain text it's fine.
+          Alternatively, style paragraph directly. Added min-h for content area. */}
+      <div className="bg-neutral-dark/70 p-6 rounded-lg shadow-inner min-h-[150px]">
+        <p className="text-neutral-lightest whitespace-pre-wrap break-words text-base sm:text-lg leading-relaxed">
+          {note.content || <span className="italic">This note has no content.</span>}
+        </p>
+      </div>
+
+      <div className="mt-10 text-center">
         <a
           href={twitterShareUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-block bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out text-lg shadow-md hover:shadow-lg"
+          className="inline-flex items-center bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-500/90 hover:to-blue-600/90 text-white font-semibold py-3 px-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-150 ease-in-out transform hover:scale-105 text-base"
         >
-          Share on X (Twitter)
+          {/* <FiTwitter className="mr-2 h-5 w-5" /> Optional: Twitter Icon */}
+          Share on X
         </a>
       </div>
     </div>

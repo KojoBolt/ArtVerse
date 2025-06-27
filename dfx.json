@@ -1,19 +1,21 @@
 {
+  "version": 1,
+  "dfx": "0.15.1",
   "canisters": {
-    "artview_backend": {
-      "candid": "src/artview_backend/artview_backend.did",
-      "package": "artview_backend",
-      "type": "rust"
+    "note_canister": {
+      "type": "rust",
+      "package": "note_canister",
+      "candid": "src/note_canister/note_canister.did"
     },
-    "artview_frontend": {
-      "dependencies": [
-        "artview_backend"
-      ],
-      "source": [
-        "src/artview_frontend/dist"
-      ],
+    "notechain_frontend": {
       "type": "assets",
-      "workspace": "artview_frontend"
+      "source": [
+        "dist/notechain_frontend/"
+      ],
+      "dependencies": [
+        "note_canister"
+      ],
+      "build": "npm run build"
     }
   },
   "defaults": {
@@ -22,6 +24,10 @@
       "packtool": ""
     }
   },
-  "output_env_file": ".env",
-  "version": 1
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  }
 }

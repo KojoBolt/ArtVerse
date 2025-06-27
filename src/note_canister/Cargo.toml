@@ -1,0 +1,17 @@
+[package]
+name = "note_canister"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid = "0.10.0"
+ic-cdk = "0.17.2"
+ic-cdk-macros = "0.17.2"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+# tokio = { version = "1", features = ["full"] }
+# ic-agent = "0.20.0"

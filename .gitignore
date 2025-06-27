@@ -1,25 +1,27 @@
-# Various IDEs and Editors
+# DFINITY
+.dfx/
+dist/
+# Rust
+target/
+# Node
+node_modules/
+# Secrets
+*.pem
+*.key
+# IDE / OS
 .vscode/
 .idea/
-**/*~
-
-# Mac OSX temporary files
 .DS_Store
-**/.DS_Store
+# Build output from frontend
+# dist/ already covered
 
-# dfx temporary files
-.dfx/
+# Log files
+*.log
+ic-history.txt
 
-# generated files
-**/declarations/
+# Candid files generated in src (if any, typically in .dfx)
+# src/note_canister/note_canister.did # We want to commit this one
 
-# rust
-target/
-
-# frontend code
-node_modules/
-dist/
-.svelte-kit/
-
-# environment variables
+# Environment files
 .env
+.env.*

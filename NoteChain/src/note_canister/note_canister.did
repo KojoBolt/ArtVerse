@@ -1,0 +1,18 @@
+type Note = record {
+  id: nat64;
+  owner: principal;
+  title: text;
+  content: text;
+  created_at: nat64;
+};
+
+type Result = variant {
+  Ok: nat64;
+  Err: text;
+};
+
+service : {
+  create_note: (text, text) -> (Result);
+  get_notes: () -> (vec Note) query;
+  get_note_by_id: (nat64) -> (opt Note) query;
+}

@@ -1,20 +1,18 @@
-import { create } from 'zustand';
-import { AuthClient } from '@dfinity/auth-client';
-import { Actor, ActorSubclass, Identity } from '@dfinity/agent';
-// Assuming your canister declarations will be generated here:
-// You might need to run `dfx generate note_canister` first
-// For now, let's define a placeholder type for the actor.
-// import { _SERVICE as NoteCanisterService } from 'declarations/note_canister/note_canister.did';
-// Placeholder, replace _SERVICE with actual generated service type
-type NoteCanisterService = any;
-
+import { create } from "zustand";
+import { AuthClient } from "@dfinity/auth-client";
+import { Actor, ActorSubclass, Identity } from "@dfinity/agent";
+// Import the generated service type
+import type { _SERVICE as NoteCanisterService } from "../../../../src/declarations/note_canister/note_canister.did.d.ts";
 
 // Determine canister ID and host based on environment
-const CANISTER_ID_NOTE_CANISTER = process.env.CANISTER_ID_NOTE_CANISTER || process.env.NOTE_CANISTER_CANISTER_ID;
+const CANISTER_ID_NOTE_CANISTER =
+  process.env.CANISTER_ID_NOTE_CANISTER ||
+  process.env.NOTE_CANISTER_CANISTER_ID;
 
-const HOST = process.env.DFX_NETWORK === 'ic'
-  ? `https://${CANISTER_ID_NOTE_CANISTER}.icp0.io` // Production (ic network)
-  : 'http://127.0.0.1:4943'; // Local development
+const HOST =
+  process.env.DFX_NETWORK === "ic"
+    ? `https://${CANISTER_ID_NOTE_CANISTER}.icp0.io` // Production (ic network)
+    : "http://127.0.0.1:4943"; // Local development
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -25,6 +23,7 @@ interface AuthState {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   initAuth: () => Promise<void>;
+  createActor: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -58,9 +57,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     await new Promise<void>((resolve, reject) => {
       get().authClient!.login({
-        identityProvider: process.env.DFX_NETWORK === 'ic'
-          ? 'https://identity.ic0.app'
-          : `http://127.0.0.1:4943?canisterId=${process.env.CANISTER_ID_INTERNET_IDENTITY}`, // Adjust for local II canister if needed
+        identityProvider:
+          process.env.DFX_NETWORK === "ic"
+            ? "https://identity.ic0.app"
+            : `http://127.0.0.1:4943?canisterId=${process.env.CANISTER_ID_INTERNET_IDENTITY}`, // Adjust for local II canister if needed
         maxTimeToLive: BigInt(7 * 24 * 60 * 60 * 1000 * 1000 * 1000), // 7 days in nanoseconds
         onSuccess: async () => {
           const identity = get().authClient!.getIdentity();
@@ -70,7 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           resolve();
         },
         onError: (err) => {
-          console.error('Login failed:', err);
+          console.error("Login failed:", err);
           reject(err);
         },
       });
@@ -81,7 +81,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { authClient } = get();
     if (authClient) {
       await authClient.logout();
-      set({ isAuthenticated: false, identity: null, principal: null, noteCanisterActor: null });
+      set({
+        isAuthenticated: false,
+        identity: null,
+        principal: null,
+        noteCanisterActor: null,
+      });
     }
   },
 
@@ -97,25 +102,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Dynamically import the service definition (declarations)
     // This relies on Vite's capability to handle dynamic imports and dfx generating the files.
     import(`declarations/note_canister`)
-      .then(module => {
+      .then(async (module) => {
         if (!module || !module.idlFactory) {
-          console.error('Failed to load idlFactory from declarations/note_canister');
+          console.error(
+            "Failed to load idlFactory from declarations/note_canister"
+          );
           return;
         }
-        const actor = Actor.createActor<NoteCanisterService>(module.idlFactory, {
-          agentOptions: {
-            identity,
-            host: HOST,
-          },
-          canisterId: CANISTER_ID_NOTE_CANISTER,
-        });
+        const { HttpAgent } = await import("@dfinity/agent");
+        const actor = Actor.createActor<NoteCanisterService>(
+          module.idlFactory,
+          {
+            agent: new HttpAgent({
+              identity,
+              host: HOST,
+            }),
+            canisterId: CANISTER_ID_NOTE_CANISTER,
+          }
+        );
         set({ noteCanisterActor: actor });
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("Error creating actor:", err);
         set({ noteCanisterActor: null });
       });
-  }
+  },
 }));
 
 // Initialize auth state when the store is first imported/used

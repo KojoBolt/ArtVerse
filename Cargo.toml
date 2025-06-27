@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "src/artview_backend"
+    "src/note_canister",
 ]
 resolver = "2"

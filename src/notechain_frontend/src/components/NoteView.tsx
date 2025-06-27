@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-// import { Note as CanisterNote } from 'declarations/note_canister/note_canister.did';
 import { Actor, ActorSubclass } from '@dfinity/agent';
-// Placeholder for the service type, replace with actual generated type
-type NoteCanisterService = any;
+// Import the generated service type
+import type { _SERVICE as NoteCanisterService } from '../../../../src/declarations/note_canister/note_canister.did.d.ts';
 
-// Frontend representation of a Note
+// Frontend representation of a Note (using the generated type)
 interface Note {
   id: bigint;
   title: string;
   content: string;
-  createdAt: bigint; // nanoseconds
+  created_at?: bigint; // nanoseconds
   owner: string; // Principal as text
 }
 
@@ -32,15 +31,18 @@ const NoteView: React.FC = () => {
     // Dynamically import the service definition (declarations)
     if (CANISTER_ID_NOTE_CANISTER) {
       import(`declarations/note_canister`)
-        .then(module => {
+        .then(async module => {
           if (!module || !module.idlFactory) {
             console.error('Failed to load idlFactory from declarations/note_canister for NoteView');
             setError('Error loading canister details.');
             setIsLoading(false);
             return;
           }
+          const { HttpAgent } = await import('@dfinity/agent');
           const publicActor = Actor.createActor<NoteCanisterService>(module.idlFactory, {
-            agentOptions: { host: HOST },
+            agent: new HttpAgent({
+              host: HOST,
+            }),
             canisterId: CANISTER_ID_NOTE_CANISTER,
           });
           setActor(publicActor);
@@ -51,18 +53,18 @@ const NoteView: React.FC = () => {
           setIsLoading(false);
         });
     } else {
-        setError('Canister ID not found for notes.');
-        setIsLoading(false);
+      setError('Canister ID not found for notes.');
+      setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!id || !actor) {
       if (id && !actor && !isLoading && !error) { // actor might still be loading
-          // setError("Note actor not available."); // Avoid setting error if actor is just loading
-      } else if(!id) {
-          setError("Note ID is missing.");
-          setIsLoading(false);
+        // setError("Note actor not available."); // Avoid setting error if actor is just loading
+      } else if (!id) {
+        setError("Note ID is missing.");
+        setIsLoading(false);
       }
       return;
     }
@@ -81,7 +83,7 @@ const NoteView: React.FC = () => {
             id: BigInt(fetchedNote.id),
             title: fetchedNote.title,
             content: fetchedNote.content,
-            createdAt: BigInt(fetchedNote.created_at),
+            created_at: BigInt(fetchedNote.created_at),
             owner: fetchedNote.owner.toText(),
           });
         } else {
@@ -117,7 +119,7 @@ const NoteView: React.FC = () => {
   }
 
   if (!note) { // Should be covered by error state, but as a fallback
-     return (
+    return (
       <div className="max-w-2xl mx-auto mt-8 p-6 text-center">
         <p className="text-xl text-text-secondary">Note not found.</p>
       </div>
@@ -131,7 +133,7 @@ const NoteView: React.FC = () => {
     <div className="max-w-3xl mx-auto mt-10 p-8 bg-surface rounded-xl shadow-2xl">
       <h1 className="text-4xl font-bold text-primary mb-3 break-words">{note.title}</h1>
       <p className="text-sm text-gray-400 mb-1">
-        Created: {new Date(Number(note.createdAt / 1000000n)).toLocaleString()}
+        Created: {new Date(Number(note?.created_at! / 1000000n)).toLocaleString()}
       </p>
       <p className="text-sm text-gray-500 mb-6 truncate" title={`Owner: ${note.owner}`}>
         Owner: {note.owner}

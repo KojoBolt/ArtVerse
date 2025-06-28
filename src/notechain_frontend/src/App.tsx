@@ -1,52 +1,19 @@
 import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Navbar from '~/components/Navbar';
 import NoteList from '~/components/NoteList';
 import NoteForm from '~/components/NoteForm';
 import NoteView from '~/components/NoteView';
-import { useAuthStore } from '~/store/simpleAuthStore';
+import EditNote from '~/components/EditNote';
 
-// A simple protected route component
-const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
-  const { isAuthenticated } = useAuthStore(state => ({
-    isAuthenticated: state.isAuthenticated
-  }));
-  const location = useLocation();
-
-  if (!isAuthenticated) {
-    // Could redirect to a login page or show a message
-    // For now, just showing a message if trying to access protected content directly.
-    // Navbar will show login button.
-    // If accessing /create directly, NoteForm also handles !isAuthenticated.
-    if (location.pathname === "/create") {
-      return <NoteForm />; // NoteForm itself handles the auth check
-    }
-    return (
-      <div className="text-center text-xl mt-10 text-text-secondary">
-        Please log in to access this page.
-      </div>
-    );
-  }
+// No authentication needed - all routes are open
+const OpenRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
   return children;
 };
 
 
 const HomePage: React.FC = () => {
-  const { isAuthenticated } = useAuthStore();
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-4xl font-bold text-primary mb-6">Welcome to NoteChain!</h1>
-        <p className="text-xl text-text-secondary mb-8">
-          Your secure, decentralized note-taking application on the Internet Computer.
-        </p>
-        <p className="text-lg text-text-secondary">
-          Choose "Login (Anonymous)" for blockchain features or "Try Demo" for a quick preview.
-        </p>
-      </div>
-    );
-  }
-  // If authenticated, show the list of notes on the homepage
+  // Show the note list directly - no authentication needed
   return <NoteList />;
 };
 
@@ -63,9 +30,17 @@ function App() {
           <Route
             path="/create"
             element={
-              <ProtectedRoute>
+              <OpenRoute>
                 <NoteForm />
-              </ProtectedRoute>
+              </OpenRoute>
+            }
+          />
+          <Route
+            path="/edit/:id"
+            element={
+              <OpenRoute>
+                <EditNote />
+              </OpenRoute>
             }
           />
           <Route path="/note/:id" element={<NoteView />} /> {/* Publicly accessible */}

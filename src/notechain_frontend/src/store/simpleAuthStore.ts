@@ -1,99 +1,84 @@
 import { create } from "zustand";
-import { Actor, HttpAgent, AnonymousIdentity } from "@dfinity/agent";
-import type { _SERVICE as NoteCanisterService } from "../../../../src/declarations/note_canister/note_canister.did.d.ts";
+import { persist } from "zustand/middleware";
 
-// Hardcoded canister IDs - no environment variable issues
-const CANISTER_ID_NOTE_CANISTER = "bd3sg-teaaa-aaaaa-qaaba-cai";
-const HOST = "http://127.0.0.1:4943";
-
-// IDL Factory - defined directly to avoid import issues
-const idlFactory = ({ IDL }: any) => {
-  const Note = IDL.Record({
-    id: IDL.Nat64,
-    title: IDL.Text,
-    content: IDL.Text,
-    owner: IDL.Principal,
-    created_at: IDL.Nat64,
-  });
-  const Result = IDL.Variant({ Ok: IDL.Nat64, Err: IDL.Text });
-  return IDL.Service({
-    create_note: IDL.Func([IDL.Text, IDL.Text], [Result], []),
-    get_note_by_id: IDL.Func([IDL.Nat64], [IDL.Opt(Note)], ["query"]),
-    get_notes: IDL.Func([], [IDL.Vec(Note)], ["query"]),
-  });
-};
-
-interface AuthState {
-  isAuthenticated: boolean;
-  userType: "guest" | "anonymous" | null;
-  principal: string | null;
-  noteCanisterActor: any | null;
-  login: () => void;
-  loginAsGuest: () => void;
-  logout: () => void;
+// Simple user interface for local storage
+interface User {
+  id: string;
+  name: string;
+  createdAt: number;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  isAuthenticated: false,
-  userType: null,
-  principal: null,
-  noteCanisterActor: null,
+interface AuthState {
+  // User state
+  user: User | null;
+  isInitialized: boolean;
+  isAuthenticated: boolean; // Always true for open access
 
-  login: () => {
-    // Simple anonymous login for demo purposes
-    try {
-      const identity = new AnonymousIdentity();
-      const agent = new HttpAgent({
-        identity,
-        host: HOST,
-      });
+  // Actions
+  initializeUser: () => void;
+  updateUserName: (name: string) => void;
+  clearUser: () => void;
+}
 
-      // In development, disable certificate verification
-      if (HOST.includes("localhost") || HOST.includes("127.0.0.1")) {
-        agent.fetchRootKey();
-      }
+// Generate a simple user ID
+const generateUserId = () =>
+  `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      const actor = Actor.createActor(idlFactory, {
-        agent,
-        canisterId: CANISTER_ID_NOTE_CANISTER,
-      });
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      isInitialized: false,
+      isAuthenticated: true, // Always authenticated for open access
 
-      const principal = identity.getPrincipal().toText();
+      initializeUser: () => {
+        const { user } = get();
 
-      set({
-        isAuthenticated: true,
-        userType: "anonymous",
-        principal,
-        noteCanisterActor: actor,
-      });
+        if (!user) {
+          // Create a new user if none exists
+          const newUser: User = {
+            id: generateUserId(),
+            name: "ArtVerse User",
+            createdAt: Date.now(),
+          };
 
-      console.log("✅ Authentication successful!", {
-        principal,
-        userType: "anonymous",
-      });
-    } catch (error) {
-      console.error("❌ Authentication failed:", error);
+          set({
+            user: newUser,
+            isInitialized: true,
+          });
+
+          console.log("✅ New user created:", newUser.id);
+        } else {
+          set({ isInitialized: true });
+          console.log("✅ Existing user loaded:", user.id);
+        }
+      },
+
+      updateUserName: (name: string) => {
+        const { user } = get();
+        if (user) {
+          set({
+            user: {
+              ...user,
+              name: name.trim() || "ArtVerse User",
+            },
+          });
+          console.log("✅ User name updated to:", name);
+        }
+      },
+
+      clearUser: () => {
+        set({
+          user: null,
+          isInitialized: false,
+          isAuthenticated: true, // Keep authenticated for open access
+        });
+        console.log("✅ User data cleared");
+      },
+    }),
+    {
+      name: "artverse-user", // localStorage key
+      partialize: (state) => ({ user: state.user }), // Only persist user data
     }
-  },
-
-  loginAsGuest: () => {
-    // Guest mode - no blockchain interaction
-    set({
-      isAuthenticated: true,
-      userType: "guest",
-      principal: "guest-user",
-      noteCanisterActor: null, // No actor for guest mode
-    });
-    console.log("✅ Guest login successful!");
-  },
-
-  logout: () => {
-    set({
-      isAuthenticated: false,
-      userType: null,
-      principal: null,
-      noteCanisterActor: null,
-    });
-    console.log("✅ Logout successful!");
-  },
-}));
+  )
+);

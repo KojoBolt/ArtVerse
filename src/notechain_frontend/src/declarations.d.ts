@@ -6,7 +6,7 @@
 // src/note_canister/src/lib.rs
 
 // Candid Principal
-type Principal = { toText: () => string; }; // Simplified Principal type
+type Principal = { toText: () => string }; // Simplified Principal type
 
 // Note structure from Rust
 interface CanisterNote {
@@ -20,7 +20,10 @@ interface CanisterNote {
 // Define the service interface for the note_canister
 // This should match the public methods in your Rust canister
 export interface _SERVICE {
-  create_note: (title: string, content: string) => Promise<{ Ok: bigint } | { Err: string }>;
+  create_note: (
+    title: string,
+    content: string
+  ) => Promise<{ Ok: bigint } | { Err: string }>;
   get_notes: () => Promise<Array<CanisterNote>>;
   get_note_by_id: (id: bigint) => Promise<[CanisterNote] | []>; // Option<Note> is Vec<Note> of 0 or 1 element
   // greet: (name: string) => Promise<string>; // If you keep the greet function
@@ -28,7 +31,7 @@ export interface _SERVICE {
 
 // This part simulates the module structure dfx generate creates
 // to allow `import { idlFactory } from 'declarations/note_canister'`
-declare module 'declarations/note_canister' {
+declare module "declarations/note_canister" {
   // This is a placeholder for the actual IDL factory.
   // dfx generate will create a more complex object.
   export const idlFactory: any;
@@ -37,8 +40,8 @@ declare module 'declarations/note_canister' {
   // export const createActor: (canisterId: string, options?: any) => ActorSubclass<_SERVICE>;
 }
 
-// Placeholder for internet identity canister if needed by local replica config in useAuthStore
-declare module 'declarations/internet_identity' {
-    export const idlFactory: any;
-    export const canisterId: string;
+// Environment variables placeholder
+declare module "declarations/internet_identity" {
+  export const idlFactory: any;
+  export const canisterId: string;
 }

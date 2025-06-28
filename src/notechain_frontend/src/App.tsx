@@ -1,22 +1,17 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from '~/components/Navbar';
 import NoteList from '~/components/NoteList';
 import NoteForm from '~/components/NoteForm';
 import NoteView from '~/components/NoteView';
-import { useAuthStore } from '~/store/useAuthStore';
+import { useAuthStore } from '~/store/simpleAuthStore';
 
 // A simple protected route component
 const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuthStore(state => ({
-    isAuthenticated: state.isAuthenticated,
-    isLoading: state.authClient === null // A proxy for initial auth loading
+  const { isAuthenticated } = useAuthStore(state => ({
+    isAuthenticated: state.isAuthenticated
   }));
   const location = useLocation();
-
-  if (isLoading) {
-    return <div className="text-center text-xl mt-10 text-primary">Initializing authentication...</div>;
-  }
 
   if (!isAuthenticated) {
     // Could redirect to a login page or show a message
@@ -24,12 +19,12 @@ const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
     // Navbar will show login button.
     // If accessing /create directly, NoteForm also handles !isAuthenticated.
     if (location.pathname === "/create") {
-       return <NoteForm />; // NoteForm itself handles the auth check
+      return <NoteForm />; // NoteForm itself handles the auth check
     }
     return (
-        <div className="text-center text-xl mt-10 text-text-secondary">
-            Please log in to access this page.
-        </div>
+      <div className="text-center text-xl mt-10 text-text-secondary">
+        Please log in to access this page.
+      </div>
     );
   }
   return children;
@@ -46,7 +41,7 @@ const HomePage: React.FC = () => {
           Your secure, decentralized note-taking application on the Internet Computer.
         </p>
         <p className="text-lg text-text-secondary">
-          Please log in using Internet Identity to create and manage your notes.
+          Choose "Login (Anonymous)" for blockchain features or "Try Demo" for a quick preview.
         </p>
       </div>
     );
@@ -57,12 +52,7 @@ const HomePage: React.FC = () => {
 
 
 function App() {
-  const { initAuth } = useAuthStore.getState(); // Get functions directly if needed for one-time call
-
-  useEffect(() => {
-    initAuth(); // Initialize authentication state when App mounts
-  }, [initAuth]);
-
+  // No initialization needed for simple auth
 
   return (
     <div className="min-h-screen bg-background text-text-primary flex flex-col">

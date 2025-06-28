@@ -1,21 +1,44 @@
-import React, { useEffect } from 'react';
-import { useNoteStore } from '~/store/useNoteStore';
-import { useAuthStore } from '~/store/useAuthStore';
+import React, { useEffect, useState } from 'react';
+import { useAuthStore } from '../store/simpleAuthStore';
+import { useMockNoteStore } from '../store/mockNoteStore';
 import NoteCard from './NoteCard';
 import { Link } from 'react-router-dom';
 
 const NoteList: React.FC = () => {
-  const { notes, isLoading, error, fetchNotes } = useNoteStore();
-  const { isAuthenticated, noteCanisterActor } = useAuthStore();
+  const { isAuthenticated, userType, noteCanisterActor } = useAuthStore();
+  const { notes: mockNotes, getNotes: getMockNotes } = useMockNoteStore();
+  const [notes, setNotes] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch notes if authenticated and actor is available
-    // The store itself also triggers fetchNotes on auth change,
-    // but this ensures it happens if the component mounts after auth.
-    if (isAuthenticated && noteCanisterActor) {
-      fetchNotes();
-    }
-  }, [isAuthenticated, fetchNotes, noteCanisterActor]);
+    const fetchNotes = async () => {
+      if (!isAuthenticated) return;
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        if (userType === 'guest') {
+          // Use mock data for guest users
+          setNotes(getMockNotes());
+        } else if (noteCanisterActor) {
+          // Use real blockchain data for authenticated users
+          const result = await noteCanisterActor.get_notes();
+          setNotes(result);
+        }
+      } catch (err) {
+        console.error('Error fetching notes:', err);
+        setError('Failed to load notes');
+        // Fallback to mock data if blockchain fails
+        setNotes(getMockNotes());
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNotes();
+  }, [isAuthenticated, userType, noteCanisterActor, getMockNotes]);
 
   if (!isAuthenticated) {
     return (

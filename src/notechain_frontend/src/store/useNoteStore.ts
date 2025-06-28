@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { useAuthStore } from './useAuthStore';
+import { create } from "zustand";
+import { useAuthStore } from "./useAuthStore";
 // Placeholder for Note type, will be refined once Candid types are generated
 // import { Note as CanisterNote } from 'declarations/note_canister/note_canister.did';
 
@@ -8,8 +8,9 @@ export interface Note {
   id: bigint; // Candid u64 maps to bigint in JS/TS
   title: string;
   content: string;
-  createdAt: bigint; // Candid u64 for timestamp
-  // owner: string; // Principal.toText() - maybe not needed directly in UI list if it's always "my" notes
+  createdAt?: bigint; // Candid u64 for timestamp
+  created_at?: bigint; // Alternative property name for compatibility
+  owner?: string; // Principal.toText() - maybe not needed directly in UI list if it's always "my" notes
 }
 
 interface NoteState {
@@ -28,7 +29,11 @@ export const useNoteStore = create<NoteState>((set, get) => ({
   fetchNotes: async () => {
     const actor = useAuthStore.getState().noteCanisterActor;
     if (!actor) {
-      set({ error: 'User not authenticated or actor not available.', isLoading: false, notes: [] });
+      set({
+        error: "User not authenticated or actor not available.",
+        isLoading: false,
+        notes: [],
+      });
       return;
     }
     set({ isLoading: true, error: null });
@@ -46,40 +51,44 @@ export const useNoteStore = create<NoteState>((set, get) => ({
       }));
       set({ notes: formattedNotes, isLoading: false });
     } catch (err: any) {
-      console.error('Failed to fetch notes:', err);
-      set({ error: err.message || 'Failed to fetch notes', isLoading: false });
+      console.error("Failed to fetch notes:", err);
+      set({ error: err.message || "Failed to fetch notes", isLoading: false });
     }
   },
 
   createNote: async (title: string, content: string) => {
     const actor = useAuthStore.getState().noteCanisterActor;
     if (!actor) {
-      set({ error: 'User not authenticated or actor not available.' });
+      set({ error: "User not authenticated or actor not available." });
       return null;
     }
     set({ isLoading: true, error: null }); // Potentially a different loading state for creation
     try {
       const result = await actor.create_note(title, content);
-      if ('Ok' in result) { // dfx >= 0.14.x returns { Ok: value } or { Err: error }
+      if ("Ok" in result) {
+        // dfx >= 0.14.x returns { Ok: value } or { Err: error }
         const newNoteId = BigInt(result.Ok);
         // After creating, refresh the notes list to include the new one
         await get().fetchNotes();
         set({ isLoading: false });
         return newNoteId;
-      } else if ('Err' in result) { // Check for 'Err' if using dfx >= 0.14.x
+      } else if ("Err" in result) {
+        // Check for 'Err' if using dfx >= 0.14.x
         throw new Error(result.Err);
       } else {
-         // Older dfx versions might return value directly or throw. This path is less likely with modern dfx.
-         // If result is directly the ID (older dfx versions or different Result type)
-         const newNoteId = BigInt(result); // Assuming result is the ID
-         await get().fetchNotes();
-         set({ isLoading: false });
-         return newNoteId;
+        // Older dfx versions might return value directly or throw. This path is less likely with modern dfx.
+        // If result is directly the ID (older dfx versions or different Result type)
+        const newNoteId = BigInt(result); // Assuming result is the ID
+        await get().fetchNotes();
+        set({ isLoading: false });
+        return newNoteId;
       }
     } catch (err: any) {
-      console.error('Failed to create note:', err);
+      console.error("Failed to create note:", err);
       // Handle specific error messages if the canister returns them in a structured way
-      const errorMessage = err.message || (typeof err === 'string' ? err : 'Failed to create note');
+      const errorMessage =
+        err.message ||
+        (typeof err === "string" ? err : "Failed to create note");
       set({ error: errorMessage, isLoading: false });
       return null;
     }
@@ -87,13 +96,11 @@ export const useNoteStore = create<NoteState>((set, get) => ({
 }));
 
 // Listen to authentication changes to fetch notes when user logs in
-useAuthStore.subscribe(
-  (state, prevState) => {
-    if (state.isAuthenticated && !prevState.isAuthenticated) {
-      useNoteStore.getState().fetchNotes();
-    } else if (!state.isAuthenticated && prevState.isAuthenticated) {
-      // Clear notes when user logs out
-      useNoteStore.setState({ notes: [], error: null });
-    }
+useAuthStore.subscribe((state, prevState) => {
+  if (state.isAuthenticated && !prevState.isAuthenticated) {
+    useNoteStore.getState().fetchNotes();
+  } else if (!state.isAuthenticated && prevState.isAuthenticated) {
+    // Clear notes when user logs out
+    useNoteStore.setState({ notes: [], error: null });
   }
-);
+});

@@ -7,17 +7,23 @@ interface NoteCardProps {
 }
 
 function timeAgo(timestamp: bigint): string {
-  const now = new Date();
-  const noteDate = new Date(Number(timestamp / 1000000n)); // Convert nanoseconds to milliseconds
-  const seconds = Math.round((now.getTime() - noteDate.getTime()) / 1000);
-  const minutes = Math.round(seconds / 60);
-  const hours = Math.round(minutes / 60);
-  const days = Math.round(hours / 24);
+  try {
+    const now = new Date();
+    // Convert nanoseconds to milliseconds with proper BigInt handling
+    const noteDate = new Date(Number(timestamp / BigInt(1000000)));
+    const seconds = Math.round((now.getTime() - noteDate.getTime()) / 1000);
+    const minutes = Math.round(seconds / 60);
+    const hours = Math.round(minutes / 60);
+    const days = Math.round(hours / 24);
 
-  if (seconds < 60) return `${seconds}s ago`;
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+    if (seconds < 60) return `${seconds}s ago`;
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  } catch (error) {
+    console.error('Error formatting timestamp:', error);
+    return 'Recently';
+  }
 }
 
 
@@ -30,6 +36,9 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
       .catch(err => console.error('Failed to copy link: ', err));
   };
 
+  // Handle both createdAt and created_at property names
+  const timestamp = note.createdAt || (note as any).created_at || BigInt(Date.now() * 1000000);
+
   return (
     <div className="bg-gray-800 shadow-lg rounded-lg p-5 transform transition-all hover:scale-105 flex flex-col justify-between">
       <div>
@@ -41,7 +50,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
         </p>
       </div>
       <div className="mt-auto">
-        <p className="text-xs text-gray-400 mb-3">Created: {timeAgo(note.createdAt)}</p>
+        <p className="text-xs text-gray-400 mb-3">Created: {timeAgo(timestamp)}</p>
         <div className="flex items-center justify-between space-x-2">
           <Link
             to={`/note/${note.id.toString()}`}

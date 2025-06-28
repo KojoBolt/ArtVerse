@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNoteStore } from '~/store/useNoteStore';
-import { useAuthStore } from '~/store/useAuthStore';
+import { useAuthStore } from '~/store/simpleAuthStore';
+import { useToast } from './ToastProvider';
 
-const NOTE_TITLE_MAX_LENGTH = 100; // Arbitrary limit, can adjust
-const NOTE_CONTENT_MAX_LENGTH = 924; // 1024 - title_max_length approx
+const NOTE_TITLE_MAX_LENGTH = 100;
+const NOTE_CONTENT_MAX_LENGTH = 924;
 
 const NoteForm: React.FC = () => {
   const [title, setTitle] = useState('');
@@ -14,17 +15,14 @@ const NoteForm: React.FC = () => {
 
   const createNote = useNoteStore((state) => state.createNote);
   const storeError = useNoteStore((state) => state.error);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { user } = useAuthStore(); // Only need user, no auth check needed
+  const { addToast } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!isAuthenticated) {
-      setError("You must be logged in to create a note.");
-      return;
-    }
     if (!title.trim()) {
       setError("Title cannot be empty.");
       return;
@@ -39,16 +37,23 @@ const NoteForm: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const newNoteId = await createNote(title, content);
-    setIsSubmitting(false);
+    try {
+      const newNoteId = await createNote(title, content, user?.id || 'anonymous');
+      setIsSubmitting(false);
 
-    if (newNoteId) {
-      setTitle('');
-      setContent('');
-      navigate('/'); // Navigate to home/dashboard after creation
-    } else {
-      // Error is already set in the store, or use a local error
-      setError(storeError || "Failed to create note. Please try again.");
+      if (newNoteId) {
+        addToast("Note created successfully!", 'success', 4000);
+        setTitle('');
+        setContent('');
+
+        // Navigate immediately 
+        navigate('/');
+      } else {
+        setError(storeError || "Failed to create note. Please try again.");
+      }
+    } catch (err: any) {
+      setIsSubmitting(false);
+      setError(err.message || "An unexpected error occurred.");
     }
   };
 
@@ -92,7 +97,7 @@ const NoteForm: React.FC = () => {
         <div>
           <button
             type="submit"
-            disabled={isSubmitting || !isAuthenticated}
+            disabled={isSubmitting}
             className="w-full bg-primary hover:bg-secondary text-white font-semibold py-3 px-4 rounded-md transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {isSubmitting ? (

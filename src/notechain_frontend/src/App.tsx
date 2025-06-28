@@ -1,68 +1,25 @@
-import React, { useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Navbar from '~/components/Navbar';
 import NoteList from '~/components/NoteList';
 import NoteForm from '~/components/NoteForm';
 import NoteView from '~/components/NoteView';
-import { useAuthStore } from '~/store/useAuthStore';
+import EditNote from '~/components/EditNote';
 
-// A simple protected route component
-const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuthStore(state => ({
-    isAuthenticated: state.isAuthenticated,
-    isLoading: state.authClient === null // A proxy for initial auth loading
-  }));
-  const location = useLocation();
-
-  if (isLoading) {
-    return <div className="text-center text-xl mt-10 text-primary">Initializing authentication...</div>;
-  }
-
-  if (!isAuthenticated) {
-    // Could redirect to a login page or show a message
-    // For now, just showing a message if trying to access protected content directly.
-    // Navbar will show login button.
-    // If accessing /create directly, NoteForm also handles !isAuthenticated.
-    if (location.pathname === "/create") {
-       return <NoteForm />; // NoteForm itself handles the auth check
-    }
-    return (
-        <div className="text-center text-xl mt-10 text-text-secondary">
-            Please log in to access this page.
-        </div>
-    );
-  }
+// No authentication needed - all routes are open
+const OpenRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
   return children;
 };
 
 
 const HomePage: React.FC = () => {
-  const { isAuthenticated } = useAuthStore();
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-4xl font-bold text-primary mb-6">Welcome to NoteChain!</h1>
-        <p className="text-xl text-text-secondary mb-8">
-          Your secure, decentralized note-taking application on the Internet Computer.
-        </p>
-        <p className="text-lg text-text-secondary">
-          Please log in using Internet Identity to create and manage your notes.
-        </p>
-      </div>
-    );
-  }
-  // If authenticated, show the list of notes on the homepage
+  // Show the note list directly - no authentication needed
   return <NoteList />;
 };
 
 
 function App() {
-  const { initAuth } = useAuthStore.getState(); // Get functions directly if needed for one-time call
-
-  useEffect(() => {
-    initAuth(); // Initialize authentication state when App mounts
-  }, [initAuth]);
-
+  // No initialization needed for simple auth
 
   return (
     <div className="min-h-screen bg-background text-text-primary flex flex-col">
@@ -73,9 +30,17 @@ function App() {
           <Route
             path="/create"
             element={
-              <ProtectedRoute>
+              <OpenRoute>
                 <NoteForm />
-              </ProtectedRoute>
+              </OpenRoute>
+            }
+          />
+          <Route
+            path="/edit/:id"
+            element={
+              <OpenRoute>
+                <EditNote />
+              </OpenRoute>
             }
           />
           <Route path="/note/:id" element={<NoteView />} /> {/* Publicly accessible */}

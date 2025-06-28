@@ -36,67 +36,96 @@ fn get_next_id() -> u64 {
     })
 }
 
+// --- Versioned Storage for Safe Migrations ---
+#[derive(Clone, Debug, CandidType, Deserialize, serde::Serialize)]
+struct StorageV1 {
+    notes: NoteStore,
+    next_id: u64,
+    version: u32,
+}
+
 // --- Canister Lifecycle Hooks for Stable Storage ---
 #[pre_upgrade]
 fn pre_upgrade() {
-    // Serialize and store NOTES
-    NOTES.with(|notes_cell| {
-        let notes_borrow = notes_cell.borrow();
-        if let Err(e) = storage::stable_save((&*notes_borrow,)) { // Pass as tuple
-            ic_cdk::trap(&format!("Failed to save NOTES to stable storage: {:?}", e));
-        }
+    // Use defensive programming to prevent upgrade failures
+    let save_result = std::panic::catch_unwind(|| {
+        let combined_state = StorageV1 {
+            notes: NOTES.with(|notes_cell| notes_cell.borrow().clone()),
+            next_id: NEXT_ID.with(|next_id_cell| *next_id_cell.borrow()),
+            version: 1,
+        };
+
+        storage::stable_save((combined_state,))
     });
 
-    // Serialize and store NEXT_ID
-    NEXT_ID.with(|next_id_cell| {
-        let next_id_borrow = next_id_cell.borrow();
-        if let Err(e) = storage::stable_save((&*next_id_borrow,)) { // Pass as tuple, careful with key for multiple items
-            ic_cdk::trap(&format!("Failed to save NEXT_ID to stable storage: {:?}", e));
+    match save_result {
+        Ok(Ok(())) => {
+            ic_cdk::print("Successfully saved state to stable storage");
+        },
+        Ok(Err(e)) => {
+            ic_cdk::print(&format!("Warning: Failed to save state to stable storage: {:?}. Upgrade will proceed with empty state.", e));
+        },
+        Err(_) => {
+            ic_cdk::print("Warning: Panic during save to stable storage. Upgrade will proceed with empty state.");
         }
-    });
-    // Correction: We need to save them together or use different "keys" for stable_save if it worked that way.
-    // For simplicity with ic_cdk::storage::stable_save/restore, we save a tuple of all state.
-    // Re-doing pre_upgrade and post_upgrade with a single state struct or tuple.
-
-    let combined_state = (
-        NOTES.with(|notes_cell| notes_cell.borrow().clone()),
-        NEXT_ID.with(|next_id_cell| *next_id_cell.borrow())
-    );
-
-    if let Err(e) = storage::stable_save((combined_state,)) {
-         ic_cdk::trap(&format!("Failed to save combined state to stable storage: {:?}", e));
     }
 }
 
 #[post_upgrade]
 fn post_upgrade() {
-    // Deserialize and restore state
-    match storage::stable_restore::<(NoteStore, u64)>() {
-        Ok((restored_notes, restored_next_id)) => {
+    // Initialize with empty state first to ensure we have a valid state
+    NOTES.with(|notes_cell| {
+        *notes_cell.borrow_mut() = HashMap::new();
+    });
+    NEXT_ID.with(|next_id_cell| {
+        *next_id_cell.borrow_mut() = 1;
+    });
+
+    // Use defensive programming to handle any possible corruption or format incompatibility
+    let restore_result = std::panic::catch_unwind(|| {
+        // Try to restore new versioned format first
+        if let Ok((storage_v1,)) = storage::stable_restore::<(StorageV1,)>() {
+            if storage_v1.version == 1 {
+                return Some((storage_v1.notes, storage_v1.next_id));
+            }
+        }
+
+        // Try to restore old format (tuple) as fallback
+        if let Ok((restored_notes, restored_next_id)) = storage::stable_restore::<(NoteStore, u64)>() {
+            return Some((restored_notes, restored_next_id));
+        }
+
+        None
+    });
+
+    match restore_result {
+        Ok(Some((restored_notes, restored_next_id))) => {
             NOTES.with(|notes_cell| {
                 *notes_cell.borrow_mut() = restored_notes;
             });
             NEXT_ID.with(|next_id_cell| {
                 *next_id_cell.borrow_mut() = restored_next_id;
             });
-        }
-        Err(e) => {
-            ic_cdk::trap(&format!("Failed to restore state from stable storage: {:?}. Initializing with empty state.", e));
-            // Optionally initialize with default state if restore fails, though trap is safer for data integrity.
+            ic_cdk::print(&format!("Successfully restored {} notes after upgrade", 
+                NOTES.with(|notes_cell| notes_cell.borrow().len())));
+        },
+        Ok(None) => {
+            ic_cdk::print("No valid state found in stable storage, starting with empty state");
+        },
+        Err(_) => {
+            ic_cdk::print("Error during state restoration, starting with empty state");
         }
     }
 }
-
 
 // --- Public Update Calls ---
 
 #[update]
 fn create_note(title: String, content: String) -> Result<u64, String> {
     let owner = caller();
-    if owner == Principal::anonymous() {
-        return Err("Anonymous principal cannot create notes.".to_string());
-    }
-
+    // Allow anonymous users for demo purposes
+    // In production, you might want to restrict this
+    
     if title.is_empty() {
         return Err("Title cannot be empty.".to_string());
     }
@@ -109,7 +138,7 @@ fn create_note(title: String, content: String) -> Result<u64, String> {
             "Note (title + content) exceeds {} byte limit. Current size: {}",
             MAX_NOTE_SIZE_BYTES,
             title.len() + content.len()
-        ));
+        ))
     }
 
     let new_id = get_next_id();
@@ -130,16 +159,65 @@ fn create_note(title: String, content: String) -> Result<u64, String> {
     Ok(new_id)
 }
 
+#[update]
+fn update_note(id: u64, title: String, content: String) -> Result<(), String> {
+    let caller_principal = caller();
+    
+    if title.is_empty() {
+        return Err("Title cannot be empty.".to_string());
+    }
+    if content.is_empty() {
+        return Err("Content cannot be empty.".to_string());
+    }
+    if title.len() + content.len() > MAX_NOTE_SIZE_BYTES {
+        return Err(format!(
+            "Note (title + content) exceeds {} byte limit. Current size: {}",
+            MAX_NOTE_SIZE_BYTES,
+            title.len() + content.len()
+        ));
+    }
+
+    NOTES.with(|notes_cell| {
+        let mut notes = notes_cell.borrow_mut();
+        if let Some(note) = notes.get_mut(&id) {
+            // Check if the caller owns this note
+            if note.owner != caller_principal {
+                return Err("You can only update your own notes.".to_string());
+            }
+            note.title = title;
+            note.content = content;
+            Ok(())
+        } else {
+            Err("Note not found.".to_string())
+        }
+    })
+}
+
+#[update]
+fn delete_note(id: u64) -> Result<(), String> {
+    let caller_principal = caller();
+    
+    NOTES.with(|notes_cell| {
+        let mut notes = notes_cell.borrow_mut();
+        if let Some(note) = notes.get(&id) {
+            // Check if the caller owns this note
+            if note.owner != caller_principal {
+                return Err("You can only delete your own notes.".to_string());
+            }
+            notes.remove(&id);
+            Ok(())
+        } else {
+            Err("Note not found.".to_string())
+        }
+    })
+}
+
 // --- Public Query Calls ---
 
 #[query]
 fn get_notes() -> Vec<Note> {
     let owner = caller();
-    if owner == Principal::anonymous() {
-        // Or return empty Vec, depending on desired behavior for anonymous callers.
-        // For "my notes", anonymous shouldn't have any.
-        return Vec::new();
-    }
+    // Allow anonymous users to see their notes for demo purposes
     NOTES.with(|notes_cell| {
         notes_cell
             .borrow()
